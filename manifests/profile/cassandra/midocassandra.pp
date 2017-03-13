@@ -151,18 +151,6 @@ class midonet_openstack::profile::cassandra::midocassandra (
 
   $cassandra_pkg_ensure = $::osfamily? {'Debian' => '2.2.7', default => undef}
 
-  file { '/var/lib/cassandra/data':
-    ensure => 'directory',
-  }
-
-  file { '/var/lib/cassandra/saved_caches':
-    ensure => 'directory',
-  }
-
-  file { '/var/lib/cassandra/commitlog':
-    ensure => 'directory',
-  }
-
 class { 'cassandra':
   settings => {
     'authenticator'               => 'AllowAllAuthenticator',
@@ -193,8 +181,7 @@ class { 'cassandra':
   },
   package_name          => $cassandra_pkg,
   package_ensure        => $cassandra_pkg_ensure,
-  require  => [Class['cassandra::datastax_repo'], File['/var/lib/cassandra/data',
-  '/var/lib/cassandra/saved_caches','/var/lib/cassandra/commitlog']]
+  require  => [Class['cassandra::datastax_repo']]
 }
 contain ::cassandra
 
