@@ -151,21 +151,52 @@ class midonet_openstack::profile::cassandra::midocassandra (
 
   $cassandra_pkg_ensure = $::osfamily? {'Debian' => '2.2.7', default => undef}
 
-  class {'::cassandra':
-    seeds                 => $seeds,
-    listen_address        => $seed_address,
-    storage_port          => $storage_port,
-    ssl_storage_port      => $ssl_storage_port,
-    native_transport_port => $client_port,
-    rpc_address           => $seed_address,
-    rpc_port              => $client_port_thrift,
-    package_name          => $cassandra_pkg,
-    package_ensure        => $cassandra_pkg_ensure,
-    service_systemd       => $is_systemd,
-    require               => Class['cassandra::datastax_repo'],
-#    before                => Class['cassandra::firewall_ports']
+  file { '/var/lib/cassandra/data':
+    ensure => 'directory',
   }
-  contain cassandra
+
+  file { '/var/lib/cassandra/saved_caches':
+    ensure => 'directory',
+  }
+
+  file { '/var/lib/cassandra/commitlog':
+    ensure => 'directory',
+  }
+
+class { 'cassandra':
+  settings => {
+    'authenticator'               => 'AllowAllAuthenticator',
+    'commitlog_directory'         => '/var/lib/cassandra/commitlog',
+    'commitlog_sync'              => 'periodic',
+    'commitlog_sync_period_in_ms' => 10000,
+    'data_file_directories'       => ['/var/lib/cassandra/data'],
+    'endpoint_snitch'             => 'GossipingPropertyFileSnitch',
+    'listen_address'              => $seed_address,
+    'storage_port'                => $storage_port,
+    'ssl_storage_port'            => $ssl_storage_port,
+    'native_transport_port'       => $client_port,
+    'rpc_address'                 => $seed_address,
+    'rpc_port'                    => $client_port_thrift,
+    'partitioner'                 => 'org.apache.cassandra.dht.Murmur3Partitioner',
+    'saved_caches_directory'      => '/var/lib/cassandra/saved_caches',
+    'seed_provider'               => [
+      {
+        'class_name' => 'org.apache.cassandra.locator.SimpleSeedProvider',
+        'parameters' => [
+          {
+            'seeds' => $seeds,
+          },
+        ],
+      },
+    ],
+    'start_native_transport'      => true,
+  },
+  package_name          => $cassandra_pkg,
+  package_ensure        => $cassandra_pkg_ensure,
+  require  => [Class['cassandra::datastax_repo'], File['/var/lib/cassandra/data',
+  '/var/lib/cassandra/saved_caches','/var/lib/cassandra/commitlog']]
+}
+contain ::cassandra
 
 #  class {'::cassandra::firewall_ports':
 #    client_ports      => [$client_port,$client_port_thrift],
